@@ -7,39 +7,119 @@ PSID distributes data in several formats:
 
 This module supports loading from:
 1. Stata .dta files (recommended - easiest)
-2. ASCII + dictionary files
+2. ASCII fixed-width text + .do dictionary files
 3. Parquet (if pre-converted)
 
 File naming conventions:
-- Family files: FAM{YEAR}ER.dta or fam{year}er.dta
+- Family files: FAM{YEAR}ER.dta or fam{year}er.dta or FAM{YEAR}ER.txt
 - Individual file: IND{YEAR}ER.dta (cumulative, includes all years)
 - Wealth files: WLT{YEAR}ER.dta
 """
 
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Tuple, Union
 import re
 
 import pandas as pd
 import numpy as np
 
 
-# PSID file patterns
+def parse_stata_infix(do_file: Path) -> List[Tuple[str, int, int]]:
+    """Parse Stata .do file to extract fixed-width column specifications.
+
+    Args:
+        do_file: Path to .do file containing infix specifications
+
+    Returns:
+        List of (column_name, start_pos, end_pos) tuples (1-indexed)
+    """
+    content = do_file.read_text()
+
+    # Find the infix section
+    infix_match = re.search(r'infix\s+(.*?)using', content, re.DOTALL | re.IGNORECASE)
+    if not infix_match:
+        raise ValueError(f"Could not find infix specification in {do_file}")
+
+    infix_section = infix_match.group(1)
+
+    # Parse column specs: [long] VARNAME start - end
+    # Pattern matches: optional "long", variable name, start position, "-", end position
+    pattern = r'(?:long\s+)?(\w+)\s+(\d+)\s*-\s*(\d+)'
+
+    columns = []
+    for match in re.finditer(pattern, infix_section):
+        var_name = match.group(1)
+        start = int(match.group(2))
+        end = int(match.group(3))
+        columns.append((var_name, start, end))
+
+    return columns
+
+
+def load_fixed_width(
+    txt_file: Path,
+    do_file: Path,
+    columns: Optional[List[str]] = None,
+) -> pd.DataFrame:
+    """Load PSID fixed-width text file using Stata .do dictionary.
+
+    Args:
+        txt_file: Path to .txt data file
+        do_file: Path to .do file with column specifications
+        columns: Optional list of columns to load (loads all if None)
+
+    Returns:
+        DataFrame with loaded data
+    """
+    col_specs = parse_stata_infix(do_file)
+
+    # Convert to pandas fwf format (0-indexed, [start, end) tuples)
+    colspecs = [(start - 1, end) for _, start, end in col_specs]
+    names = [name for name, _, _ in col_specs]
+
+    # Filter columns if specified
+    if columns:
+        columns_upper = [c.upper() for c in columns]
+        indices = [i for i, name in enumerate(names) if name.upper() in columns_upper]
+        colspecs = [colspecs[i] for i in indices]
+        names = [names[i] for i in indices]
+
+    df = pd.read_fwf(
+        txt_file,
+        colspecs=colspecs,
+        names=names,
+        dtype=str,  # Read as string first to avoid overflow
+    )
+
+    # Convert numeric columns
+    for col in df.columns:
+        df[col] = pd.to_numeric(df[col], errors='coerce')
+
+    return df
+
+
+# PSID file patterns (order matters - .dta preferred over .txt)
 FILE_PATTERNS = {
     "family": [
         "FAM{year}ER.dta",
         "fam{year}er.dta",
         "F{year}.dta",
         "FAM{year}.dta",
+        "FAM{year}ER.txt",  # Fixed-width text format
+        "fam{year}er.txt",
     ],
     "individual": [
         "IND{year}ER.dta",
         "ind{year}er.dta",
         "J{year}.dta",
+        "IND{year}ER.txt",  # Fixed-width text format
+        "ind{year}er.txt",
     ],
     "wealth": [
         "WLT{year}ER.dta",
         "wlt{year}er.dta",
+        "WLT{year}ER.txt",
+        "wlt{year}er.txt",
     ],
 }
 
@@ -105,10 +185,19 @@ def load_family(
         )
 
     # Load based on file type
-    if file_path.suffix == ".dta":
+    if file_path.suffix.lower() == ".dta":
         df = pd.read_stata(file_path, columns=columns)
-    elif file_path.suffix == ".parquet":
+    elif file_path.suffix.lower() == ".parquet":
         df = pd.read_parquet(file_path, columns=columns)
+    elif file_path.suffix.lower() == ".txt":
+        # Find corresponding .do file for column definitions
+        do_file = file_path.with_suffix(".do")
+        if not do_file.exists():
+            raise FileNotFoundError(
+                f"Dictionary file {do_file} not found. "
+                f"PSID text files require the corresponding .do file."
+            )
+        df = load_fixed_width(file_path, do_file, columns=columns)
     else:
         raise ValueError(f"Unsupported file format: {file_path.suffix}")
 
@@ -151,10 +240,12 @@ def load_individual(
     """
     data_path = Path(data_dir)
 
-    # Find most recent individual file
+    # Find most recent individual file (prefer .dta, then .parquet, then .txt)
     ind_files = list(data_path.glob("*[Ii][Nn][Dd]*.[Dd][Tt][Aa]"))
     if not ind_files:
         ind_files = list(data_path.glob("*[Ii][Nn][Dd]*.parquet"))
+    if not ind_files:
+        ind_files = list(data_path.glob("*[Ii][Nn][Dd]*.[Tt][Xx][Tt]"))
 
     if not ind_files:
         raise FileNotFoundError(
@@ -168,8 +259,20 @@ def load_individual(
     # Load
     if file_path.suffix.lower() == ".dta":
         df = pd.read_stata(file_path, columns=columns)
-    elif file_path.suffix == ".parquet":
+    elif file_path.suffix.lower() == ".parquet":
         df = pd.read_parquet(file_path, columns=columns)
+    elif file_path.suffix.lower() == ".txt":
+        # Find corresponding .do file for column definitions
+        do_file = file_path.with_suffix(".do")
+        if not do_file.exists():
+            # Try uppercase
+            do_file = file_path.with_name(file_path.stem.upper() + ".do")
+        if not do_file.exists():
+            raise FileNotFoundError(
+                f"Dictionary file not found for {file_path}. "
+                f"PSID text files require the corresponding .do file."
+            )
+        df = load_fixed_width(file_path, do_file, columns=columns)
     else:
         raise ValueError(f"Unsupported file format: {file_path.suffix}")
 
