@@ -63,6 +63,42 @@ class TestPSIDDownloader:
         assert downloader.username is None
         assert downloader.password is None
 
+    def test_credentials_from_env_vars(self):
+        """Test that credentials can be read from environment variables."""
+        import os
+        from psid.download import PSID_USERNAME_ENV, PSID_PASSWORD_ENV
+
+        # Set env vars
+        os.environ[PSID_USERNAME_ENV] = "env_user"
+        os.environ[PSID_PASSWORD_ENV] = "env_pass"
+
+        try:
+            downloader = PSIDDownloader()
+            username, password = downloader._get_credentials()
+            assert username == "env_user"
+            assert password == "env_pass"
+        finally:
+            # Clean up
+            del os.environ[PSID_USERNAME_ENV]
+            del os.environ[PSID_PASSWORD_ENV]
+
+    def test_explicit_credentials_override_env(self):
+        """Test that explicit credentials override env vars."""
+        import os
+        from psid.download import PSID_USERNAME_ENV, PSID_PASSWORD_ENV
+
+        os.environ[PSID_USERNAME_ENV] = "env_user"
+        os.environ[PSID_PASSWORD_ENV] = "env_pass"
+
+        try:
+            downloader = PSIDDownloader(username="explicit", password="creds")
+            username, password = downloader._get_credentials()
+            assert username == "explicit"
+            assert password == "creds"
+        finally:
+            del os.environ[PSID_USERNAME_ENV]
+            del os.environ[PSID_PASSWORD_ENV]
+
     def test_extract_field(self):
         """Test extracting hidden form field from HTML."""
         downloader = PSIDDownloader()

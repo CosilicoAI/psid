@@ -18,6 +18,7 @@ Example:
 """
 
 import getpass
+import os
 import re
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -25,6 +26,10 @@ from urllib.parse import urljoin
 
 import requests
 
+
+# Environment variable names for credentials
+PSID_USERNAME_ENV = "PSID_USERNAME"
+PSID_PASSWORD_ENV = "PSID_PASSWORD"
 
 # PSID server URLs
 PSID_BASE_URL = "https://simba.isr.umich.edu"
@@ -137,10 +142,23 @@ class PSIDDownloader:
         self._logged_in = False
 
     def _get_credentials(self) -> tuple:
-        """Get credentials, prompting if needed."""
+        """Get credentials from args, env vars, or prompt.
+
+        Priority:
+        1. Credentials passed to __init__
+        2. Environment variables (PSID_USERNAME, PSID_PASSWORD)
+        3. Interactive prompt
+        """
         username = self.username
         password = self.password
 
+        # Try environment variables
+        if username is None:
+            username = os.environ.get(PSID_USERNAME_ENV)
+        if password is None:
+            password = os.environ.get(PSID_PASSWORD_ENV)
+
+        # Fall back to prompt
         if username is None:
             username = input("PSID username: ")
         if password is None:
