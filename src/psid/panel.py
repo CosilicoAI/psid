@@ -31,6 +31,8 @@ from psid.load import (
     get_relationship_column,
 )
 from psid.variables import FamilyVars, IndividualVars, get_crosswalk
+from psid.sample import filter_by_sample, SampleType
+from typing import Union
 
 
 @dataclass
@@ -158,6 +160,32 @@ class Panel:
             time_col=self.time_col,
         )
 
+    def min_periods(self, n: int) -> "Panel":
+        """Filter to individuals with at least N observations.
+
+        Unlike `balanced()` which requires specific years, this just
+        requires a minimum number of observations regardless of which years.
+
+        Args:
+            n: Minimum number of observations required
+
+        Returns:
+            Panel with only individuals having >= n observations
+
+        Example:
+            >>> # Keep only individuals observed at least twice
+            >>> filtered = panel.min_periods(n=2)
+        """
+        counts = self.data.groupby(self.id_col)[self.time_col].count()
+        valid_ids = counts[counts >= n].index
+        filtered = self.data[self.data[self.id_col].isin(valid_ids)]
+
+        return Panel(
+            data=filtered.reset_index(drop=True),
+            id_col=self.id_col,
+            time_col=self.time_col,
+        )
+
     def summary(self) -> pd.DataFrame:
         """Summary statistics by year."""
         numeric_cols = [c for c in self._value_cols
@@ -174,6 +202,7 @@ def build_panel(
     individual_vars: Optional[IndividualVars] = None,
     heads_only: bool = False,
     balanced: bool = False,
+    sample: Optional[Union[str, SampleType, List[Union[str, SampleType]]]] = None,
 ) -> Panel:
     """Build longitudinal panel from PSID data files.
 
@@ -190,6 +219,8 @@ def build_panel(
         individual_vars: Individual-level variables to extract
         heads_only: Only include household heads
         balanced: Only include individuals in all years
+        sample: Sample type(s) to include: "SRC", "SEO", "IMMIGRANT",
+            or list of these. None includes all samples.
 
     Returns:
         Panel object with person-year data
@@ -200,6 +231,9 @@ def build_panel(
         ... })
         >>> panel = build_panel("./data", years=[2019, 2021], family_vars=family_vars)
         >>> print(f"{panel.n_individuals} individuals × {panel.n_years} years")
+
+        # For nationally representative sample, use SRC only:
+        >>> panel = build_panel("./data", years=[2019, 2021], sample="SRC")
     """
     data_path = Path(data_dir)
 
@@ -210,6 +244,12 @@ def build_panel(
     # Ensure we have core ID columns
     if "ER30001" not in ind.columns or "ER30002" not in ind.columns:
         raise ValueError("Individual file missing core ID columns (ER30001, ER30002)")
+
+    # Apply sample filter if specified
+    if sample is not None:
+        print(f"Filtering to sample: {sample}")
+        ind = filter_by_sample(ind, sample=sample, er30001_col="ER30001")
+        print(f"  {len(ind)} individuals after sample filter")
 
     # Create person_id
     ind["person_id"] = ind["ER30001"] * 1000 + ind["ER30002"]

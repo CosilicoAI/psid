@@ -106,6 +106,8 @@ trans = panel.get_transitions(["income"])
 | Household transitions | ✅ | ❌ |
 | Built-in crosswalk | ✅ | ❌ |
 | Variable search | ✅ | ❌ |
+| Sample filtering (SRC/SEO/Immigrant) | ✅ | ✅ |
+| Minimum periods filtering | ✅ | ✅ |
 | Stata .dta support | ✅ | ❌ |
 | Direct download | ❌ | ✅ |
 

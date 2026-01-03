@@ -14,6 +14,7 @@ psid.build_panel(
     individual_vars: Optional[IndividualVars] = None,
     heads_only: bool = False,
     balanced: bool = False,
+    sample: Optional[Union[str, SampleType, List]] = None,
 ) -> Panel
 ```
 
@@ -27,6 +28,7 @@ psid.build_panel(
 | `individual_vars` | IndividualVars | Individual-level variables |
 | `heads_only` | bool | Only include household heads |
 | `balanced` | bool | Only include individuals in all years |
+| `sample` | str/SampleType/List | Sample type(s): "SRC", "SEO", "IMMIGRANT" |
 
 **Returns:** `Panel` object
 
@@ -93,6 +95,16 @@ Filter to individuals observed in all specified years.
 ```python
 panel.balanced(years: List[int] = None) -> Panel
 ```
+
+#### `min_periods(n)`
+
+Filter to individuals with at least N observations (any years).
+
+```python
+panel.min_periods(n: int) -> Panel
+```
+
+Unlike `balanced()` which requires specific years, this just requires a minimum count.
 
 #### `summary()`
 
@@ -342,3 +354,70 @@ Available variables:
 - `family_size`
 - `marital_status`
 - `family_weight`
+
+---
+
+## Sample Filtering
+
+PSID has multiple sample types determined by ER30001 (1968 Interview Number):
+- **SRC**: Survey Research Center (original 1968 national probability sample)
+- **SEO**: Survey of Economic Opportunity (low-income oversample)
+- **IMMIGRANT**: Refresher samples (1997, 1999, 2017)
+
+### `SampleType` enum
+
+```python
+class SampleType(Enum):
+    SRC = "SRC"
+    SEO = "SEO"
+    IMMIGRANT = "IMMIGRANT"
+    LATINO = "LATINO"
+    UNKNOWN = "UNKNOWN"
+```
+
+### `get_sample_type()`
+
+Determine sample type from ER30001.
+
+```python
+psid.get_sample_type(er30001: int) -> SampleType
+```
+
+**Example:**
+```python
+psid.get_sample_type(1500)  # SampleType.SRC
+psid.get_sample_type(5500)  # SampleType.SEO
+```
+
+### `filter_by_sample()`
+
+Filter DataFrame by sample type.
+
+```python
+psid.filter_by_sample(
+    df: DataFrame,
+    sample: Optional[Union[str, SampleType, List]] = None,
+    er30001_col: str = "ER30001",
+    add_column: bool = True,
+) -> DataFrame
+```
+
+**Example:**
+```python
+# Filter to nationally representative SRC sample
+filtered = psid.filter_by_sample(df, sample="SRC")
+
+# Multiple samples
+filtered = psid.filter_by_sample(df, sample=["SRC", "SEO"])
+```
+
+### `SAMPLE_RANGES`
+
+Dictionary of ER30001 ranges for each sample type.
+
+```python
+psid.SAMPLE_RANGES
+# {SampleType.SRC: [(1, 2999)],
+#  SampleType.SEO: [(5001, 6872)],
+#  SampleType.IMMIGRANT: [(3001, 3511), (4001, 4462), (7001, 9308)]}
+```

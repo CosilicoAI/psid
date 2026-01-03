@@ -22,14 +22,13 @@ This document compares the Python `psid` package with the R `psidR` package.
 | Built-in crosswalk | ✅ | ❌ | psidR relies on user lookup |
 | Variable search | ✅ | ❌ | `search_variables()` |
 | **Sample Selection** |
-| Heads only | ✅ | ✅ | `heads.only` parameter |
-| Current heads only | ❌ | ✅ | Distinguishes movers |
-| Sample type (SRC/SEO) | ❌ | ✅ | Filter by sample origin |
-| Immigrant sample | ❌ | ✅ | |
+| Heads only | ✅ | ✅ | `heads_only` parameter |
+| Sample type (SRC/SEO) | ✅ | ✅ | `sample` parameter |
+| Immigrant sample | ✅ | ✅ | Included in sample types |
 | **Panel Design** |
 | Balanced panel | ✅ | ✅ | All years required |
 | Unbalanced panel | ✅ | ✅ | Any observations |
-| Minimum periods | ❌ | ✅ | Integer design option |
+| Minimum periods | ✅ | ✅ | `min_periods(n)` method |
 | **Output** |
 | pandas DataFrame | ✅ | N/A | |
 | data.table | N/A | ✅ | |
@@ -106,19 +105,36 @@ This is the main value-add for dynamic microsimulation use cases.
 
 ### 5. Sample Selection
 
-**psidR**: Comprehensive sample filtering
+Both packages now support comprehensive sample filtering:
+
+**psidR**:
 ```r
-build.panel(..., sample="SRC", heads.only=TRUE, current.heads.only=TRUE)
+build.panel(..., sample="SRC", heads.only=TRUE)
 ```
 
-**psid**: Basic filtering (heads only)
+**psid**:
 ```python
-psid.build_panel(..., heads_only=True)
+psid.build_panel(..., sample="SRC", heads_only=True)
 ```
 
-We don't yet support:
-- `sample` filtering (SRC vs SEO vs immigrant)
-- `current.heads.only` (distinguishes movers from always-heads)
+Supported sample types:
+- `SRC` - Survey Research Center (national probability sample, 1-2999)
+- `SEO` - Survey of Economic Opportunity (low-income oversample, 5001-6872)
+- `IMMIGRANT` - Immigrant refresher samples (3001-3511, 4001-4462, 7001-9308)
+
+### 6. Minimum Periods
+
+Both packages support filtering to individuals observed at least N times:
+
+**psidR**:
+```r
+build.panel(..., design=3)  # At least 3 observations
+```
+
+**psid**:
+```python
+panel.min_periods(n=3)  # At least 3 observations
+```
 
 ## Migration from psidR
 
@@ -164,6 +180,7 @@ panel <- build.panel(
   datadir = "~/data",
   fam.vars = fam.vars,
   heads.only = TRUE,
+  sample = "SRC",
   design = "balanced"
 )
 ```
@@ -175,17 +192,19 @@ panel = psid.build_panel(
     years=[2019, 2021],
     family_vars=family_vars,
     heads_only=True,
+    sample="SRC",
     balanced=True,
 )
 ```
 
-## Roadmap: Planned Features
+## Why Use psid Over psidR?
 
-Features we plan to add for full parity:
-
-1. **Sample filtering** - `sample="SRC"` option
-2. **Current heads only** - Distinguish current from former heads
-3. **Minimum periods** - `design=3` for at least 3 consecutive years
-4. **Direct download** - Authenticated download from PSID (optional)
+| Reason | Details |
+|--------|---------|
+| **Household transitions** | Detect marriage, divorce, splitoffs - not in psidR |
+| **Built-in crosswalk** | No manual variable code lookup |
+| **Python ecosystem** | Integrates with pandas, scikit-learn, etc. |
+| **Stata file support** | Direct .dta loading (most common format) |
+| **Active development** | Modern Python package structure |
 
 Contributions welcome at https://github.com/CosilicoAI/psid

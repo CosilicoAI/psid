@@ -41,6 +41,12 @@ from psid.variables import (
 from psid.load import load_family, load_individual, load_wealth
 from psid.panel import build_panel, Panel
 from psid.transitions import get_household_transitions, TransitionType
+from psid.sample import (
+    SampleType,
+    get_sample_type,
+    filter_by_sample,
+    SAMPLE_RANGES,
+)
 
 __version__ = "0.1.0"
 
@@ -61,4 +67,9 @@ __all__ = [
     # Transitions
     "get_household_transitions",
     "TransitionType",
+    # Sample filtering
+    "SampleType",
+    "get_sample_type",
+    "filter_by_sample",
+    "SAMPLE_RANGES",
 ]
