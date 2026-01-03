@@ -27,7 +27,6 @@ project:
 site:
   title: psid Documentation
   template: book-theme
-  base: /psid
   options:
     favicon: ""
     logo: ""
