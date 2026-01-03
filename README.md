@@ -12,12 +12,29 @@ pip install psid
 
 ## Data Access
 
-PSID data requires free registration at https://psidonline.isr.umich.edu
+PSID data requires free registration and **manual download** from https://psidonline.isr.umich.edu
 
-1. Create an account at the link above
-2. Download data files manually (see "Downloading Data" below)
+### Why Manual Download?
 
-*Note: PSID added Cloudflare CAPTCHA in 2025, blocking automated downloads.*
+As of 2025, PSID added Cloudflare CAPTCHA protection to their website, which blocks all programmatic/automated downloads. This affects both this package and the R package [psidR](https://github.com/floswald/psidR) (see [psidR issue #62](https://github.com/floswald/psidR/issues/62)).
+
+### Download Instructions
+
+1. Create a free account at https://psidonline.isr.umich.edu
+2. Go to **Data** → **Packaged Data** → **Main and Supplemental Studies**
+3. Download the files you need:
+   - **Family files** for each year (e.g., 2019, 2021, 2023)
+   - **Cross-year Individual file** (cumulative, contains all years)
+4. Download as **Stata (.dta)** format
+5. Place files in your `data_dir`
+
+Expected file structure:
+```
+psid_data/
+├── FAM2019ER.dta    # Family file 2019
+├── FAM2021ER.dta    # Family file 2021
+└── IND2021ER.dta    # Individual file (cumulative)
+```
 
 ## Quick Start
 
@@ -31,48 +48,18 @@ family_vars = psid.FamilyVars({
     "family_size": {2019: "ER77064", 2021: "ER81389"},
 })
 
-# Build panel - auto-downloads missing files!
+# Build panel from manually downloaded files
 panel = psid.build_panel(
     data_dir="./psid_data",
     years=[2019, 2021],
     family_vars=family_vars,
 )
-# Will prompt for PSID username/password if files not found locally
 
 print(f"{panel.n_individuals} individuals × {panel.n_years} years")
 # 9,000 individuals × 2 years
 
 # Get transitions for modeling
 transitions = panel.get_transitions(["income", "wealth"])
-```
-
-## Downloading Data
-
-**Note:** As of 2025, PSID added Cloudflare CAPTCHA protection, blocking automated downloads. You must download data manually:
-
-1. Go to https://psidonline.isr.umich.edu → **Data Center**
-2. Select your variables using the Data Cart
-3. Download as **Stata (.dta)** format
-4. Place files in your `data_dir`
-
-Expected file structure:
-```
-psid_data/
-├── FAM2019ER.dta    # Family file 2019
-├── FAM2021ER.dta    # Family file 2021
-└── IND2021ER.dta    # Individual file (cumulative)
-```
-
-Then use the package:
-```python
-import psid
-
-# Load manually downloaded files
-panel = psid.build_panel(
-    "./psid_data",
-    years=[2019, 2021],
-    download=False,  # Skip auto-download attempt
-)
 ```
 
 ## Household Transitions
@@ -178,7 +165,7 @@ This ID remains stable even when:
 | Individual (`IND{YEAR}ER.dta`) | Person-level, cumulative across all years |
 | Wealth (`WLT{YEAR}ER.dta`) | Wealth supplement (1984, 1989, 1994, 1999+) |
 
-## Comparison to psidr (R)
+## Comparison to psidR (R)
 
 This package is inspired by [psidR](https://github.com/floswald/psidR) but designed for Python workflows, with a focus on:
 
@@ -186,6 +173,8 @@ This package is inspired by [psidR](https://github.com/floswald/psidR) but desig
 2. **Variable crosswalk** - Built-in mapping of common variables across years
 3. **Panel utilities** - Get transitions, balanced panels, cross-sections
 4. **Modern Python** - Type hints, dataclasses, pandas integration
+
+Note: Like psidR, this package requires manual data download due to PSID's CAPTCHA protection (see [psidR issue #62](https://github.com/floswald/psidR/issues/62)).
 
 ## Use Cases
 
