@@ -3,16 +3,19 @@
 PSID is the longest-running longitudinal household survey in the world,
 following families since 1968. This package provides tools to:
 
-1. Load PSID data files (family, individual, wealth)
-2. Build longitudinal panels with consistent person IDs
-3. Handle the variable name crosswalk across years
-4. Track household transitions (marriage, divorce, splitoffs)
+1. Download PSID data files (requires free registration)
+2. Load PSID data files (family, individual, wealth)
+3. Build longitudinal panels with consistent person IDs
+4. Handle the variable name crosswalk across years
+5. Track household transitions (marriage, divorce, splitoffs)
 
-Note: PSID data requires registration at https://psidonline.isr.umich.edu
-You must download data files manually and provide the path to this package.
+Note: PSID data requires free registration at https://psidonline.isr.umich.edu
 
 Example:
     >>> import psid
+    >>>
+    >>> # Download data (prompts for credentials)
+    >>> psid.download(years=[2019, 2021], data_dir="./psid_data")
     >>>
     >>> # Define variables to extract (names vary by year)
     >>> family_vars = psid.FamilyVars({
@@ -20,7 +23,7 @@ Example:
     ...     "wealth": {2019: "ER71426", 2021: "ER77450"},
     ... })
     >>>
-    >>> # Build panel
+    >>> # Build panel (auto-downloads if files missing)
     >>> panel = psid.build_panel(
     ...     data_dir="./psid_data",
     ...     years=[2019, 2021],
@@ -47,10 +50,21 @@ from psid.sample import (
     filter_by_sample,
     SAMPLE_RANGES,
 )
+from psid.download import (
+    download_psid as download,
+    PSIDDownloader,
+    PSID_FILE_NUMBERS,
+    get_file_number,
+)
 
 __version__ = "0.1.0"
 
 __all__ = [
+    # Downloading
+    "download",
+    "PSIDDownloader",
+    "PSID_FILE_NUMBERS",
+    "get_file_number",
     # Variable specification
     "FamilyVars",
     "IndividualVars",

@@ -26,6 +26,7 @@ import pandas as pd
 from psid.load import (
     load_family,
     load_individual,
+    find_file,
     get_interview_number_column,
     get_sequence_number_column,
     get_relationship_column,
@@ -33,6 +34,70 @@ from psid.load import (
 from psid.variables import FamilyVars, IndividualVars, get_crosswalk
 from psid.sample import filter_by_sample, SampleType
 from typing import Union
+
+
+def _download_missing_files(
+    data_path: Path,
+    years: List[int],
+    username: Optional[str],
+    password: Optional[str],
+) -> None:
+    """Check for missing files and download them.
+
+    Args:
+        data_path: Directory for PSID files
+        years: Years to check/download
+        username: PSID username
+        password: PSID password
+    """
+    from psid.download import PSIDDownloader, PSID_FILE_NUMBERS
+
+    # Check what's missing
+    missing_family = []
+    for year in years:
+        if find_file(data_path, "family", year) is None:
+            missing_family.append(year)
+
+    # Check for individual file
+    ind_files = list(data_path.glob("*[Ii][Nn][Dd]*.[Dd][Tt][Aa]"))
+    missing_individual = len(ind_files) == 0
+
+    if not missing_family and not missing_individual:
+        print("All required files found locally.")
+        return
+
+    # Need to download
+    print(f"Missing files detected:")
+    if missing_family:
+        print(f"  Family files for years: {missing_family}")
+    if missing_individual:
+        print(f"  Individual file")
+
+    print("\nDownloading from PSID server...")
+    print("(Requires free registration at https://psidonline.isr.umich.edu)")
+
+    downloader = PSIDDownloader(username=username, password=password)
+    downloader.login()
+    print("Login successful!\n")
+
+    # Download missing family files
+    for year in missing_family:
+        print(f"Downloading family file for {year}...")
+        try:
+            downloader.download_family(year, str(data_path))
+        except Exception as e:
+            print(f"  Warning: Could not download family {year}: {e}")
+
+    # Download individual file if missing
+    if missing_individual:
+        max_year = max(years)
+        print(f"Downloading individual file (up to {max_year})...")
+        try:
+            downloader.download_individual(max_year, str(data_path))
+        except Exception as e:
+            print(f"  Warning: Could not download individual file: {e}")
+
+    print()
 
 
 @dataclass
@@ -203,14 +268,18 @@ def build_panel(
     heads_only: bool = False,
     balanced: bool = False,
     sample: Optional[Union[str, SampleType, List[Union[str, SampleType]]]] = None,
+    download: bool = True,
+    username: Optional[str] = None,
+    password: Optional[str] = None,
 ) -> Panel:
     """Build longitudinal panel from PSID data files.
 
     This is the main function for constructing PSID panels. It:
-    1. Loads the individual file (for person IDs and demographics)
-    2. Loads family files for each year
-    3. Merges family data to individuals via interview number
-    4. Creates consistent person_id across all years
+    1. Downloads missing data files (if download=True)
+    2. Loads the individual file (for person IDs and demographics)
+    3. Loads family files for each year
+    4. Merges family data to individuals via interview number
+    5. Creates consistent person_id across all years
 
     Args:
         data_dir: Directory containing PSID files
@@ -221,6 +290,9 @@ def build_panel(
         balanced: Only include individuals in all years
         sample: Sample type(s) to include: "SRC", "SEO", "IMMIGRANT",
             or list of these. None includes all samples.
+        download: If True, download missing files (prompts for credentials)
+        username: PSID username (prompts if not provided)
+        password: PSID password (prompts if not provided)
 
     Returns:
         Panel object with person-year data
@@ -229,13 +301,22 @@ def build_panel(
         >>> family_vars = FamilyVars({
         ...     "income": {2019: "ER77448", 2021: "ER81775"},
         ... })
+        >>> # Auto-downloads missing files (prompts for credentials)
         >>> panel = build_panel("./data", years=[2019, 2021], family_vars=family_vars)
         >>> print(f"{panel.n_individuals} individuals × {panel.n_years} years")
 
         # For nationally representative sample, use SRC only:
         >>> panel = build_panel("./data", years=[2019, 2021], sample="SRC")
+
+        # Skip download (use existing files only):
+        >>> panel = build_panel("./data", years=[2019], download=False)
     """
     data_path = Path(data_dir)
+    data_path.mkdir(parents=True, exist_ok=True)
+
+    # Check for missing files and download if needed
+    if download:
+        _download_missing_files(data_path, years, username, password)
 
     # Load individual file
     print("Loading individual file...")
