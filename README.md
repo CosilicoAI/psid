@@ -15,7 +15,9 @@ pip install psid
 PSID data requires free registration at https://psidonline.isr.umich.edu
 
 1. Create an account at the link above
-2. That's it! The package will download data automatically
+2. Download data files manually (see "Downloading Data" below)
+
+*Note: PSID added Cloudflare CAPTCHA in 2025, blocking automated downloads.*
 
 ## Quick Start
 
@@ -46,31 +48,31 @@ transitions = panel.get_transitions(["income", "wealth"])
 
 ## Downloading Data
 
-The package can automatically download PSID data files:
+**Note:** As of 2025, PSID added Cloudflare CAPTCHA protection, blocking automated downloads. You must download data manually:
 
+1. Go to https://psidonline.isr.umich.edu → **Data Center**
+2. Select your variables using the Data Cart
+3. Download as **Stata (.dta)** format
+4. Place files in your `data_dir`
+
+Expected file structure:
+```
+psid_data/
+├── FAM2019ER.dta    # Family file 2019
+├── FAM2021ER.dta    # Family file 2021
+└── IND2021ER.dta    # Individual file (cumulative)
+```
+
+Then use the package:
 ```python
 import psid
 
-# Download specific years (prompts for credentials)
-psid.download(
+# Load manually downloaded files
+panel = psid.build_panel(
+    "./psid_data",
     years=[2019, 2021],
-    data_dir="./psid_data",
+    download=False,  # Skip auto-download attempt
 )
-
-# Or provide credentials directly
-psid.download(
-    years=[2019, 2021],
-    data_dir="./psid_data",
-    username="your_username",
-    password="your_password",
-    include_wealth=True,  # Also download wealth supplements
-)
-
-# build_panel also auto-downloads if files are missing
-panel = psid.build_panel("./psid_data", years=[2019, 2021])
-
-# Skip auto-download (use local files only)
-panel = psid.build_panel("./psid_data", years=[2019], download=False)
 ```
 
 ## Household Transitions
