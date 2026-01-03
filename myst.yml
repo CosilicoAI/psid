@@ -1,0 +1,37 @@
+version: 1
+project:
+  title: psid
+  description: Python package for working with PSID (Panel Study of Income Dynamics) data
+  keywords:
+    - psid
+    - panel data
+    - longitudinal
+    - microsimulation
+  github: https://github.com/CosilicoAI/psid
+  license: MIT
+  toc:
+    - file: docs/index.md
+    - title: Getting Started
+      children:
+        - file: docs/quickstart.md
+        - file: docs/data_structure.md
+    - title: Guides
+      children:
+        - file: docs/crosswalk.md
+        - file: docs/transitions.md
+    - title: Reference
+      children:
+        - file: docs/api.md
+        - file: docs/comparison_psidr.md
+
+site:
+  title: psid Documentation
+  template: book-theme
+  options:
+    favicon: ""
+    logo: ""
+  nav:
+    - title: GitHub
+      url: https://github.com/CosilicoAI/psid
+    - title: PyPI
+      url: https://pypi.org/project/psid/

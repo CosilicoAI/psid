@@ -48,3 +48,7 @@ data/
 # OS
 .DS_Store
 Thumbs.db
+
+# MyST/Jupyter Book
+_build/
+.myst_cache/

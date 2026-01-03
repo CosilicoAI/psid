@@ -29,10 +29,14 @@ dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
 ]
+docs = [
+    "mystmd>=1.0.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/CosilicoAI/psid"
 Repository = "https://github.com/CosilicoAI/psid"
+Documentation = "https://cosilicoai.github.io/psid/"
 
 [build-system]
 requires = ["hatchling"]
